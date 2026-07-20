@@ -64,20 +64,29 @@ cargo tauri build
 
 ## GitHub Actions リリース
 
-[`.github/workflows/release.yml`](.github/workflows/release.yml) が次のタイミングでインストーラをビルドし、Release に添付します。
+[`.github/workflows/release.yml`](.github/workflows/release.yml) がインストーラをビルドし、Release に添付します。  
+リリースノートは GitHub の **Automatically generated release notes**（コミット / PR 一覧）で自動作成します。カテゴリは [`.github/release.yml`](.github/release.yml) で制御できます。
 
 | トリガー | 動作 |
 |----------|------|
-| **GitHub Release を Publish** | その Release に Windows / macOS / Linux 成果物をアップロード |
-| **Actions → Release → Run workflow** | アプリバージョンの draft Release を作成して成果物を添付 |
+| **`v*` タグを push**（推奨） | リリースノート自動生成 → Release 作成 → 各 OS ビルドを添付 |
+| **GitHub Release を Publish** | 既存 Release に成果物をアップロード |
+| **Actions → Release → Run workflow** | アプリバージョンの **draft** Release（ノート付き）を作成してビルド |
 
-### 手順（推奨）
+### 手順（推奨: タグ push）
 
-1. リポジトリ設定 → **Actions** → **Workflow permissions** で **Read and write permissions** を有効化
-2. GitHub 上で **Draft a new release** → タグ例 `v0.1.0` → **Publish release**
-3. Actions の `Release` ワークフローが走り、各 OS の `.msi` / `.exe` / `.dmg` / `.deb` 等が Release に付く
+1. リポジトリ設定 → **Actions** → **Workflow permissions** で **Read and write permissions** を有効化  
+2. バージョンを揃える（`src-tauri/tauri.conf.json` / `Cargo.toml`）  
+3. タグを打って push:
 
-手動:
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+4. Actions の `Release` が走り、ノート付き Release に `.msi` / `.exe` / `.dmg` / `.deb` 等が付く  
+
+手動 draft:
 
 ```text
 Actions → Release → Run workflow

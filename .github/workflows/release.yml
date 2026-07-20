@@ -1,11 +1,18 @@
 # Build Tauri installers and attach them to a GitHub Release.
 #
-# Trigger: publish a GitHub Release (or run manually via workflow_dispatch).
+# Triggers:
+#   - push tag v*     → create Release with auto-generated notes, then build
+#   - release published → attach builds to that Release
+#   - workflow_dispatch → draft Release with notes (from app version), then build
+#
 # Requires: Settings → Actions → Workflow permissions → Read and write.
 
 name: Release
 
 on:
+  push:
+    tags:
+      - "v*"
   release:
     types: [published]
   workflow_dispatch:
@@ -14,7 +21,113 @@ permissions:
   contents: write
 
 jobs:
+  # Create (or resolve) the GitHub Release and emit release_id for builders.
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.resolve.outputs.release_id }}
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tauri.conf.json
+        id: version
+        shell: bash
+        run: |
+          VER=$(jq -r .version src-tauri/tauri.conf.json)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "App version: $VER"
+
+      - name: Create or resolve release (with auto notes)
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EVENT="${{ github.event_name }}"
+          APP_VER="${{ steps.version.outputs.version }}"
+          REPO="${{ github.repository }}"
+
+          if [ "$EVENT" = "release" ]; then
+            RID="${{ github.event.release.id }}"
+            TAG="${{ github.event.release.tag_name }}"
+            echo "Using existing published release id=$RID tag=$TAG"
+            echo "release_id=$RID" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$EVENT" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+            DRAFT=false
+          else
+            # workflow_dispatch
+            TAG="v${APP_VER}"
+            DRAFT=true
+          fi
+
+          NAME="Grok Usage Monitor ${TAG}"
+          echo "Preparing release tag=$TAG draft=$DRAFT"
+
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            RID=$(gh release view "$TAG" --repo "$REPO" --json databaseId -q .databaseId)
+            echo "Release already exists id=$RID"
+          else
+            # Intro is prepended; --generate-notes appends the commit/PR changelog.
+            NOTES_FILE=$(mktemp)
+            {
+              echo "## Installers"
+              echo ""
+              echo "Download the asset for your platform from this release."
+              echo ""
+              echo "- **Windows:** \`.msi\` / NSIS \`.exe\`"
+              echo "- **macOS:** \`.dmg\` (unsigned unless signing secrets are configured)"
+              echo "- **Linux:** \`.deb\` / \`.AppImage\`"
+              echo ""
+              echo "## Changes"
+              echo ""
+            } > "$NOTES_FILE"
+
+            CREATE_ARGS=(
+              release create "$TAG"
+              --repo "$REPO"
+              --title "$NAME"
+              --generate-notes
+              --notes-file "$NOTES_FILE"
+            )
+
+            # Prefer previous tag as the notes baseline when available.
+            if PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null); then
+              echo "Notes since: $PREV"
+              CREATE_ARGS+=(--notes-start-tag "$PREV")
+            fi
+
+            if [ "$DRAFT" = "true" ]; then
+              CREATE_ARGS+=(--draft)
+            fi
+
+            # Tag push already has the remote tag; avoid accidental retarget.
+            if [ "$EVENT" = "push" ]; then
+              CREATE_ARGS+=(--verify-tag)
+            fi
+
+            gh "${CREATE_ARGS[@]}"
+            rm -f "$NOTES_FILE"
+
+            RID=$(gh release view "$TAG" --repo "$REPO" --json databaseId -q .databaseId)
+            echo "Created release id=$RID"
+          fi
+
+          echo "release_id=$RID" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+
   publish-tauri:
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:
@@ -55,24 +168,12 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      # Static HTML frontend (no Node build step).
       - name: Build and upload release assets
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: src-tauri
-          # When the workflow is started by a published Release, attach to it.
-          releaseId: ${{ github.event.release.id }}
-          # Manual runs create/update a draft release tagged with the app version.
-          tagName: ${{ github.event_name == 'workflow_dispatch' && 'v__VERSION__' || '' }}
-          releaseName: ${{ github.event_name == 'workflow_dispatch' && 'Grok Usage Monitor v__VERSION__' || '' }}
-          releaseBody: |
-            Desktop installers for Grok Usage Monitor.
-
-            - Windows: `.msi` / `.exe` (NSIS)
-            - macOS: `.dmg` / `.app` (unsigned unless signing secrets are configured)
-            - Linux: `.deb` / `.AppImage`
-          releaseDraft: ${{ github.event_name == 'workflow_dispatch' }}
-          prerelease: false
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
+          tagName: ${{ needs.prepare-release.outputs.tag_name }}
           args: ${{ matrix.args }}
