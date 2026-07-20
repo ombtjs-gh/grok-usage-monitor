@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      html, body { background: #1a1a1e; width: 360px; height: 400px; }
+      #app { width: 320px; height: 360px; margin: 20px auto; border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.55); }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header class="chrome">
+        <div class="brand">
+          <span class="singularity"></span>
+          <div class="brand-copy">
+            <div class="brand-title">Grok</div>
+            <div class="brand-sub">Usage</div>
+          </div>
+        </div>
+        <div class="chrome-actions">
+          <button class="icon-btn">↻</button>
+          <button class="icon-btn">–</button>
+          <button class="icon-btn close">×</button>
+        </div>
+      </header>
+      <main class="body">
+        <section class="card empty">
+          <div class="empty-mark"></div>
+          <p class="empty-title">アカウントを追加</p>
+          <p class="empty-hint">Grok CLI の認証、またはブラウザログイン</p>
+          <div class="btn-row">
+            <button class="btn primary">CLI 取り込み</button>
+            <button class="btn ghost">ログイン</button>
+          </div>
+        </section>
+        <section class="card accounts">
+          <div class="accounts-head">
+            <span class="accounts-title">Accounts</span>
+            <div class="accounts-actions">
+              <button class="btn tiny">取込</button>
+              <button class="btn tiny">+</button>
+            </div>
+          </div>
+          <ul class="account-list">
+            <li class="account-item">
+              <span class="email" style="color:var(--text-faint)">No accounts</span>
+            </li>
+          </ul>
+        </section>
+        <section class="card toolbar">
+          <label class="tool">
+            <span class="tool-label">Opacity</span>
+            <input type="range" value="92" />
+            <span class="tool-val">92%</span>
+          </label>
+          <label class="tool check">
+            <input type="checkbox" checked />
+            <span class="tool-label">Top</span>
+          </label>
+          <label class="tool">
+            <span class="tool-label">Every</span>
+            <select><option selected>10m</option></select>
+          </label>
+        </section>
+      </main>
+      <footer class="foot"><p class="status"></p></footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      html, body { background: #1a1a1e; width: 360px; height: 400px; }
+      #app { width: 320px; height: 360px; margin: 20px auto; border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.55); }
+      /* Crop-friendly focus ring on toolbar for screenshot */
+      .toolbar {
+        outline: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header class="chrome">
+        <div class="brand">
+          <span class="singularity"></span>
+          <div class="brand-copy">
+            <div class="brand-title">Grok</div>
+            <div class="brand-sub">nova@example.com</div>
+          </div>
+        </div>
+        <div class="chrome-actions">
+          <button class="icon-btn">↻</button>
+          <button class="icon-btn">–</button>
+          <button class="icon-btn close">×</button>
+        </div>
+      </header>
+      <main class="body">
+        <section class="card usage">
+          <div class="usage-hero">
+            <div class="usage-pct-wrap">
+              <span class="usage-pct" style="color:#e8e8e8">42</span>
+              <span class="usage-unit">%</span>
+            </div>
+            <div class="usage-track">
+              <span class="usage-fill" style="width:42%"></span>
+            </div>
+          </div>
+          <div class="breakdown">
+            <span class="break-chip">Build <strong>31%</strong></span>
+            <span class="break-chip">Chat <strong>8%</strong></span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta-cell">
+              <span class="meta-label">リセット</span>
+              <span class="meta-value">2026-07-27 13:25</span>
+            </div>
+            <div class="meta-cell">
+              <span class="meta-label">最終更新</span>
+              <span class="meta-value">2026-07-21 09:14</span>
+            </div>
+          </div>
+        </section>
+        <section class="card accounts">
+          <div class="accounts-head">
+            <span class="accounts-title">Accounts</span>
+            <div class="accounts-actions">
+              <button class="btn tiny">取込</button>
+              <button class="btn tiny">+</button>
+            </div>
+          </div>
+          <ul class="account-list">
+            <li class="account-item active">
+              <span class="avatar">NO</span>
+              <div class="email">nova@example.com</div>
+              <span class="usage-badge">42%</span>
+              <button class="btn danger">×</button>
+            </li>
+          </ul>
+        </section>
+        <section class="card toolbar">
+          <label class="tool">
+            <span class="tool-label">Opacity</span>
+            <input type="range" value="70" />
+            <span class="tool-val">70%</span>
+          </label>
+          <label class="tool check">
+            <input type="checkbox" checked />
+            <span class="tool-label">Top</span>
+          </label>
+          <label class="tool">
+            <span class="tool-label">Every</span>
+            <select><option selected>30m</option></select>
+          </label>
+        </section>
+      </main>
+      <footer class="foot"><p class="status ok">every 30m</p></footer>
+    </div>
+  </body>
+</html>
