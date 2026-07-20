@@ -79,9 +79,34 @@
         <section class="card accounts" data-i18n-aria="accounts" aria-label="Accounts">
           <div class="accounts-head">
             <span class="accounts-title" data-i18n="accounts">Accounts</span>
-            <div class="accounts-actions">
-              <button id="btn-import-2" class="btn tiny" data-i18n="importShort" data-i18n-title="importCli" title="CLI import">Import</button>
-              <button id="btn-login-2" class="btn tiny" data-i18n-title="login" title="Log in">+</button>
+            <div class="accounts-tools">
+              <div class="sort-group" role="group" data-i18n-aria="sortGroup" aria-label="Sort accounts">
+                <button
+                  type="button"
+                  id="sort-usage"
+                  class="sort-btn"
+                  data-sort="usage"
+                  data-i18n-title="sortUsage"
+                  title="Sort by usage"
+                >
+                  % <span class="sort-arrow" aria-hidden="true"></span>
+                </button>
+                <button
+                  type="button"
+                  id="sort-reset"
+                  class="sort-btn"
+                  data-sort="reset"
+                  data-i18n-title="sortReset"
+                  title="Sort by reset"
+                >
+                  <span data-i18n="sortResetShort">Reset</span>
+                  <span class="sort-arrow" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="accounts-actions">
+                <button id="btn-import-2" class="btn tiny" data-i18n="importShort" data-i18n-title="importCli" title="CLI import">Import</button>
+                <button id="btn-login-2" class="btn tiny" data-i18n-title="login" title="Log in">+</button>
+              </div>
             </div>
           </div>
           <ul id="account-list" class="account-list"></ul>

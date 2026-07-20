@@ -311,9 +311,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   padding: 0 4px 6px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .accounts-title {
@@ -322,11 +323,69 @@ body {
   text-transform: uppercase;
   color: var(--text-faint);
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.accounts-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.sort-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.sort-btn:hover {
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sort-btn.active {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sort-arrow {
+  display: inline-block;
+  min-width: 0.7em;
+  font-size: 8px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
 }
 
 .accounts-actions {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .account-list {

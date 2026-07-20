@@ -19,6 +19,8 @@ struct AppState {
     settings: Mutex<AppSettings>,
     /// Usage cache keyed by account user_id.
     usage_by_account: Mutex<HashMap<String, UsageData>>,
+    /// UI / tray locale: "en" | "ja"
+    locale: Mutex<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -104,7 +106,34 @@ fn emit_snapshot(app: &AppHandle, snap: &AppSnapshot) {
     update_tray_tooltip(app, snap);
 }
 
+fn tray_strings(locale: &str) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
+    // (show, refresh, quit, disconnected, waiting)
+    if locale == "ja" {
+        (
+            "表示",
+            "使用量を更新",
+            "終了",
+            "Grok Usage · 未接続",
+            "Grok Usage · 更新待ち",
+        )
+    } else {
+        (
+            "Show",
+            "Refresh usage",
+            "Quit",
+            "Grok Usage · disconnected",
+            "Grok Usage · waiting",
+        )
+    }
+}
+
 fn update_tray_tooltip(app: &AppHandle, snap: &AppSnapshot) {
+    let locale = app
+        .try_state::<AppState>()
+        .map(|s| s.locale.lock().clone())
+        .unwrap_or_else(|| "en".into());
+    let (_show, _refresh, _quit, disconnected, waiting) = tray_strings(&locale);
+
     let tooltip = if let Some(u) = &snap.usage {
         let label = u
             .account_email
@@ -113,13 +142,38 @@ fn update_tray_tooltip(app: &AppHandle, snap: &AppSnapshot) {
             .unwrap_or("Grok");
         format!("Grok Usage · {label} · {:.0}%", u.percentage)
     } else if snap.accounts.is_empty() {
-        "Grok Usage · 未接続".into()
+        disconnected.to_string()
     } else {
-        "Grok Usage · 更新待ち".into()
+        waiting.to_string()
     };
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_tooltip(Some(tooltip));
     }
+}
+
+fn build_tray_menu<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    locale: &str,
+) -> tauri::Result<Menu<R>> {
+    let (show, refresh, quit, _, _) = tray_strings(locale);
+    let show_i = MenuItem::with_id(app, "show", show, true, None::<&str>)?;
+    let refresh_i = MenuItem::with_id(app, "refresh", refresh, true, None::<&str>)?;
+    let quit_i = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
+    Menu::with_items(app, &[&show_i, &refresh_i, &quit_i])
+}
+
+fn apply_tray_locale(app: &AppHandle, locale: &str) -> Result<(), String> {
+    let menu = build_tray_menu(app, locale).map_err(|e| e.to_string())?;
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+    }
+    // Refresh tooltip language for idle states.
+    let snap = {
+        let state = app.state::<AppState>();
+        snapshot_from(&state)
+    };
+    update_tray_tooltip(app, &snap);
+    Ok(())
 }
 
 fn show_main_window(app: &AppHandle) {
@@ -337,6 +391,17 @@ fn get_settings(state: State<'_, AppState>) -> AppSettings {
     state.settings.lock().clone()
 }
 
+/// Sync tray menu (and idle tooltips) with the UI language.
+#[tauri::command]
+fn set_locale(app: AppHandle, state: State<'_, AppState>, locale: String) -> Result<(), String> {
+    let locale = match locale.as_str() {
+        "ja" | "jp" => "ja".to_string(),
+        _ => "en".to_string(),
+    };
+    *state.locale.lock() = locale.clone();
+    apply_tray_locale(&app, &locale)
+}
+
 fn bootstrap_state() -> AppState {
     let accounts = store::load_accounts()
         .map(|s| s.accounts)
@@ -349,14 +414,16 @@ fn bootstrap_state() -> AppState {
         accounts: Mutex::new(accounts),
         settings: Mutex::new(settings),
         usage_by_account: Mutex::new(HashMap::new()),
+        locale: Mutex::new("en".into()),
     }
 }
 
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let show_i = MenuItem::with_id(app, "show", "表示", true, None::<&str>)?;
-    let refresh_i = MenuItem::with_id(app, "refresh", "使用量を更新", true, None::<&str>)?;
-    let quit_i = MenuItem::with_id(app, "quit", "終了", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show_i, &refresh_i, &quit_i])?;
+    let locale = app
+        .try_state::<AppState>()
+        .map(|s| s.locale.lock().clone())
+        .unwrap_or_else(|| "en".into());
+    let menu = build_tray_menu(app, &locale)?;
 
     let icon = app
         .default_window_icon()
@@ -415,9 +482,11 @@ pub fn run() {
             set_always_on_top,
             set_refresh_interval,
             get_settings,
+            set_locale,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
+            // State must exist before tray (locale).
             setup_tray(&handle)?;
 
             let state = app.state::<AppState>();

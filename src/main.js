@@ -5,6 +5,7 @@ const { getCurrentWindow } = window.__TAURI__.window;
 const appWindow = getCurrentWindow();
 
 const LOCALE_KEY = "grok-usage-monitor.locale";
+const SORT_KEY = "grok-usage-monitor.sort";
 
 const I18N = {
   en: {
@@ -29,6 +30,10 @@ const I18N = {
     top: "Top",
     every: "Every",
     interval: "Refresh interval",
+    sortGroup: "Sort accounts",
+    sortUsage: "Sort by usage (click to toggle)",
+    sortReset: "Sort by reset date (click to toggle)",
+    sortResetShort: "Reset",
     statusUpdated: "updated",
     statusRefreshing: "refreshing…",
     statusImporting: "importing…",
@@ -60,6 +65,10 @@ const I18N = {
     top: "前面",
     every: "間隔",
     interval: "更新間隔",
+    sortGroup: "アカウント並び替え",
+    sortUsage: "使用量で並び替え（クリックで昇順/降順）",
+    sortReset: "リセット日で並び替え（クリックで昇順/降順）",
+    sortResetShort: "リセット",
     statusUpdated: "更新しました",
     statusRefreshing: "更新中…",
     statusImporting: "取り込み中…",
@@ -73,6 +82,9 @@ const I18N = {
 
 /** @type {"en"|"ja"} */
 let locale = loadLocale();
+
+/** @type {{ key: "usage"|"reset", dir: "asc"|"desc" }} */
+let sortState = loadSort();
 
 const el = {
   empty: document.getElementById("empty-state"),
@@ -98,6 +110,8 @@ const el = {
   btnLogin: document.getElementById("btn-login"),
   btnImport2: document.getElementById("btn-import-2"),
   btnLogin2: document.getElementById("btn-login-2"),
+  sortUsage: document.getElementById("sort-usage"),
+  sortReset: document.getElementById("sort-reset"),
 };
 
 let busy = false;
@@ -123,6 +137,98 @@ function saveLocale(lang) {
     localStorage.setItem(LOCALE_KEY, lang);
   } catch {
     /* ignore */
+  }
+}
+
+function loadSort() {
+  try {
+    const raw = localStorage.getItem(SORT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (
+        (parsed.key === "usage" || parsed.key === "reset") &&
+        (parsed.dir === "asc" || parsed.dir === "desc")
+      ) {
+        return { key: parsed.key, dir: parsed.dir };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return { key: "usage", dir: "desc" };
+}
+
+function saveSort() {
+  try {
+    localStorage.setItem(SORT_KEY, JSON.stringify(sortState));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function syncTrayLocale() {
+  try {
+    await invoke("set_locale", { locale });
+  } catch (e) {
+    console.warn("set_locale failed", e);
+  }
+}
+
+function updateSortButtons() {
+  for (const btn of [el.sortUsage, el.sortReset]) {
+    if (!btn) continue;
+    const key = btn.dataset.sort;
+    const active = sortState.key === key;
+    btn.classList.toggle("active", active);
+    const arrow = btn.querySelector(".sort-arrow");
+    if (arrow) {
+      arrow.textContent = active ? (sortState.dir === "asc" ? "↑" : "↓") : "";
+    }
+  }
+}
+
+function sortedAccounts(accounts, usageByAccount) {
+  const list = [...(accounts || [])];
+  const dir = sortState.dir === "asc" ? 1 : -1;
+  list.sort((a, b) => {
+    const ua = usageByAccount?.[a.id];
+    const ub = usageByAccount?.[b.id];
+    let cmp = 0;
+    if (sortState.key === "usage") {
+      const pa = ua != null ? Number(ua.percentage) : -1;
+      const pb = ub != null ? Number(ub.percentage) : -1;
+      cmp = pa - pb;
+    } else {
+      const ta = ua?.resetAt ? Date.parse(ua.resetAt) : 0;
+      const tb = ub?.resetAt ? Date.parse(ub.resetAt) : 0;
+      const na = Number.isFinite(ta) ? ta : 0;
+      const nb = Number.isFinite(tb) ? tb : 0;
+      cmp = na - nb;
+    }
+    if (cmp !== 0) return cmp * dir;
+    // Stable-ish tie-break by email/id
+    const la = (a.email || a.displayName || a.id || "").toString();
+    const lb = (b.email || b.displayName || b.id || "").toString();
+    return la.localeCompare(lb);
+  });
+  return list;
+}
+
+function setSort(key) {
+  if (sortState.key === key) {
+    sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+  } else {
+    sortState.key = key;
+    // Defaults: usage high→low, reset soon→later
+    sortState.dir = key === "usage" ? "desc" : "asc";
+  }
+  saveSort();
+  updateSortButtons();
+  if (snapshot) {
+    const settings = snapshot.settings || {};
+    const accounts = snapshot.accounts || [];
+    const selectedId = settings.selectedAccountId || accounts[0]?.id;
+    renderAccounts(accounts, selectedId, snapshot.usageByAccount || {});
   }
 }
 
@@ -232,6 +338,8 @@ function applyI18n() {
     if (typeof val === "string") node.setAttribute("aria-label", val);
   });
 
+  updateSortButtons();
+
   // Re-apply dynamic UI bits (account list labels, empty state already via data-i18n)
   if (snapshot) {
     applySnapshot(snapshot, null, { silent: true, keepStatus: true });
@@ -240,6 +348,9 @@ function applyI18n() {
   if (lastStatusKey && I18N.en[lastStatusKey]) {
     setStatusKey(lastStatusKey, lastStatusKind || "ok");
   }
+
+  // Keep tray right-click menu in the same language
+  syncTrayLocale();
 }
 
 function applySettings(settings) {
@@ -310,7 +421,8 @@ function renderAccounts(accounts, selectedId, usageByAccount) {
     )}</span></li>`;
     return;
   }
-  for (const acc of accounts) {
+  const ordered = sortedAccounts(accounts, usageByAccount);
+  for (const acc of ordered) {
     const li = document.createElement("li");
     li.className =
       "account-item" + (acc.id === selectedId ? " active" : "");
@@ -415,10 +527,20 @@ function toggleLocale() {
 
 async function init() {
   applyI18n();
+  updateSortButtons();
 
   el.btnLang.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleLocale();
+  });
+
+  el.sortUsage?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setSort("usage");
+  });
+  el.sortReset?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setSort("reset");
   });
 
   el.btnRefresh.addEventListener("click", () =>
