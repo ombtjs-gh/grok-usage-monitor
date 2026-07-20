@@ -115,6 +115,24 @@ body {
   flex-shrink: 0;
 }
 
+/* Language toggle — matches icon buttons, compact code label */
+.lang-btn {
+  min-width: 28px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.lang-btn #lang-code {
+  font-family: var(--sans);
+  line-height: 1;
+}
+
+.lang-btn:hover {
+  color: var(--text);
+}
+
 /* —— Body layout —— */
 .body {
   flex: 1;
