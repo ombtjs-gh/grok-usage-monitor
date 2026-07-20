@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grok Usage</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="main.js" defer></script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="chrome" data-tauri-drag-region>
+        <div class="brand" data-tauri-drag-region>
+          <span class="singularity" data-tauri-drag-region aria-hidden="true"></span>
+          <div class="brand-copy" data-tauri-drag-region>
+            <div class="brand-title" data-tauri-drag-region>Grok</div>
+            <div id="account-label" class="brand-sub" data-tauri-drag-region>Usage</div>
+          </div>
+        </div>
+        <div class="chrome-actions">
+          <button id="btn-refresh" class="icon-btn" title="更新" aria-label="更新">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M13.5 8a5.5 5.5 0 1 1-1.4-3.6l.9.9V2.5h-2.8l1.1 1.1A6.5 6.5 0 1 0 14.5 8h-1z"
+              />
+            </svg>
+          </button>
+          <button id="btn-minimize" class="icon-btn" title="最小化" aria-label="最小化">–</button>
+          <button id="btn-close" class="icon-btn close" title="トレイに隠す" aria-label="閉じる">×</button>
+        </div>
+      </header>
+
+      <main class="body">
+        <section id="empty-state" class="card empty hidden">
+          <div class="empty-mark" aria-hidden="true"></div>
+          <p class="empty-title">アカウントを追加</p>
+          <p class="empty-hint">Grok CLI の認証、またはブラウザログイン</p>
+          <div class="btn-row">
+            <button id="btn-import" class="btn primary">CLI 取り込み</button>
+            <button id="btn-login" class="btn ghost">ログイン</button>
+          </div>
+        </section>
+
+        <section id="usage-panel" class="card usage hidden">
+          <div class="usage-hero">
+            <div class="usage-pct-wrap">
+              <span id="usage-pct" class="usage-pct">--</span>
+              <span class="usage-unit">%</span>
+            </div>
+            <div class="usage-track" aria-hidden="true">
+              <span id="usage-bar-fill" class="usage-fill"></span>
+            </div>
+          </div>
+
+          <div id="breakdown" class="breakdown"></div>
+
+          <div class="meta-grid">
+            <div class="meta-cell">
+              <span class="meta-label">リセット</span>
+              <span id="reset-text" class="meta-value">----/--/-- --:--</span>
+            </div>
+            <div class="meta-cell">
+              <span class="meta-label">最終更新</span>
+              <span id="fetched-text" class="meta-value">----/--/-- --:--</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card accounts" aria-label="アカウント">
+          <div class="accounts-head">
+            <span class="accounts-title">Accounts</span>
+            <div class="accounts-actions">
+              <button id="btn-import-2" class="btn tiny" title="CLI 取り込み">取込</button>
+              <button id="btn-login-2" class="btn tiny" title="ログイン">+</button>
+            </div>
+          </div>
+          <ul id="account-list" class="account-list"></ul>
+        </section>
+
+        <section class="card toolbar">
+          <label class="tool" title="透明度">
+            <span class="tool-label">Opacity</span>
+            <input id="opacity" type="range" min="20" max="100" value="92" />
+            <span id="opacity-val" class="tool-val">92%</span>
+          </label>
+          <label class="tool check" title="常に前面">
+            <input id="always-on-top" type="checkbox" checked />
+            <span class="tool-label">Top</span>
+          </label>
+          <label class="tool" title="更新間隔">
+            <span class="tool-label">Every</span>
+            <select id="interval" aria-label="更新間隔">
+              <option value="5">5m</option>
+              <option value="10" selected>10m</option>
+              <option value="15">15m</option>
+              <option value="30">30m</option>
+              <option value="60">60m</option>
+            </select>
+          </label>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <p id="status" class="status" role="status"></p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+[package]
+name = "grok-usage-monitor"
+version = "0.1.0"
+description = "Lightweight multi-account Grok weekly usage monitor"
+authors = ["ombtjs-gh"]
+edition = "2021"
+
+[lib]
+name = "grok_usage_monitor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["sync", "time", "rt", "macros", "net", "io-util"] }
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.8"
+url = "2"
+urlencoding = "2"
+thiserror = "2"
+parking_lot = "0.12"
+# OS keychain: Windows Credential Manager / macOS Keychain / Linux Secret Service
+keyring = { version = "3", features = [
+  "apple-native",
+  "windows-native",
+  "sync-secret-service",
+] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -1,0 +1,23 @@
+# Rust / Tauri
+**/target/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/WixTools/
+src-tauri/wix/
+*.pdb
+
+# Node (if added later)
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# App local secrets (never commit)
+.grok-monitor/

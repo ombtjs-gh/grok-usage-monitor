@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Grok Usage Monitor",
+  "version": "0.1.0",
+  "identifier": "com.grok.usage-monitor",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Grok Usage",
+        "label": "main",
+        "width": 320,
+        "height": 360,
+        "minWidth": 320,
+        "maxWidth": 320,
+        "minHeight": 280,
+        "maxHeight": 900,
+        "resizable": true,
+        "maximizable": false,
+        "minimizable": true,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": false,
+        "center": false,
+        "shadow": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
