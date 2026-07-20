@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 // Types matching Rust models
@@ -39,7 +40,7 @@ interface AppSettings {
 }
 
 function App() {
-  const [accounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
     opacity: 0.9,
     always_on_top: true,
@@ -49,14 +50,72 @@ function App() {
     auto_start: false,
   });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch accounts (placeholder - will be implemented with Tauri commands)
+  // Fetch accounts from Tauri backend
   const fetchAccounts = async () => {
     try {
-      // TODO: Implement Tauri command to get accounts
+      setIsLoading(true);
+      setError(null);
+      const result = await invoke<Account[]>("get_accounts");
+      setAccounts(result);
       setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Failed to fetch accounts:", error);
+    } catch (err) {
+      console.error("Failed to fetch accounts:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Start OAuth login flow
+  const startOAuthLogin = async () => {
+    try {
+      const authUrl = await invoke<string>("start_oauth_login");
+      // Open browser for OAuth flow
+      window.open(authUrl, "_blank");
+      
+      // In a real implementation, you'd need to handle the callback
+      // This is simplified - production would use a local server or custom protocol
+      alert("ブラウザでログインを完了してください。完了後、このウィンドウを閉じてください。");
+      await fetchAccounts();
+    } catch (err) {
+      console.error("OAuth login failed:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Remove an account
+  const removeAccount = async (accountId: string) => {
+    if (!confirm("このアカウントを削除してもよろしいですか？")) return;
+    
+    try {
+      await invoke("remove_account", { accountId });
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Failed to remove account:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Refresh usage for an account
+  const refreshUsage = async (accountId: string) => {
+    try {
+      await invoke("refresh_usage", { accountId });
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Failed to refresh usage:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  // Set window opacity
+  const setOpacity = async (opacity: number) => {
+    try {
+      await invoke("set_opacity", { opacity });
+    } catch (err) {
+      console.error("Failed to set opacity:", err);
     }
   };
 
@@ -66,6 +125,11 @@ function App() {
     fetchAccounts(); // Initial fetch
     return () => clearInterval(interval);
   }, [settings.default_poll_interval]);
+
+  // Update opacity when settings change
+  useEffect(() => {
+    setOpacity(settings.opacity);
+  }, [settings.opacity]);
 
   // Calculate usage percentage
   const getUsagePercentage = (usage?: UsageSnapshot): number | null => {
@@ -111,11 +175,18 @@ function App() {
         </div>
       </header>
 
+      {error && (
+        <div className="error-message">
+          <p>{error}</p>
+          <button onClick={() => setError(null)}>閉じる</button>
+        </div>
+      )}
+
       <div className="accounts-list">
         {accounts.length === 0 ? (
           <div className="no-accounts">
             <p>アカウントが登録されていません</p>
-            <button onClick={() => {/* TODO: Open OAuth flow */}}>
+            <button onClick={startOAuthLogin} disabled={isLoading}>
               ＋ アカウント追加
             </button>
           </div>
@@ -130,9 +201,16 @@ function App() {
                   <span className={`status-dot ${account.is_active ? 'active' : 'inactive'}`} />
                   <span className="account-name">{account.display_name}</span>
                   <span className="account-type">{account.account_type}</span>
+                  <button 
+                    className="remove-btn"
+                    onClick={() => removeAccount(account.id)}
+                    title="アカウント削除"
+                  >
+                    ×
+                  </button>
                 </div>
                 
-                {account.usage && (
+                {account.usage ? (
                   <div className="usage-info">
                     <div className="usage-stats">
                       <span>残：{account.usage.remaining_queries ?? "?"}/{account.usage.total_queries ?? "?"} queries</span>
@@ -165,6 +243,11 @@ function App() {
                       リセット：{formatTimeUntilReset(account.usage.reset_at)} 後
                     </div>
                   </div>
+                ) : (
+                  <div className="no-usage">
+                    <span>使用量データがありません</span>
+                    <button onClick={() => refreshUsage(account.id)}>更新</button>
+                  </div>
                 )}
               </div>
             );
@@ -183,13 +266,23 @@ function App() {
             value={settings.opacity}
             onChange={(e) => setSettings({ ...settings, opacity: parseFloat(e.target.value) })}
           />
+          <span>{Math.round(settings.opacity * 100)}%</span>
         </div>
         
         <button 
           className="refresh-btn"
           onClick={fetchAccounts}
+          disabled={isLoading}
         >
-          更新
+          {isLoading ? "更新中..." : "更新"}
+        </button>
+        
+        <button 
+          className="add-account-btn"
+          onClick={startOAuthLogin}
+          disabled={isLoading}
+        >
+          ＋ アカウント追加
         </button>
       </div>
     </div>

@@ -179,12 +179,16 @@ impl UsagePoller {
         // Try different methods based on account type
         let usage = match account.account_type {
             crate::models::AccountType::Consumer => {
-                self.fetch_grok_com_usage(access_token).await
-                    .or_else(|_| self.fetch_usage_from_headers(access_token).await)?
+                match self.fetch_grok_com_usage(access_token).await {
+                    Ok(u) => u,
+                    Err(_) => self.fetch_usage_from_headers(access_token).await?,
+                }
             }
             crate::models::AccountType::API => {
-                self.fetch_console_usage(access_token).await
-                    .or_else(|_| self.fetch_usage_from_headers(access_token).await)?
+                match self.fetch_console_usage(access_token).await {
+                    Ok(u) => u,
+                    Err(_) => self.fetch_usage_from_headers(access_token).await?,
+                }
             }
             crate::models::AccountType::Enterprise => {
                 self.fetch_usage_from_headers(access_token).await?

@@ -1,7 +1,6 @@
-use crate::auth::{AuthService, XaiAuthConfig};
-use crate::models::{Account, AppSettings, TokenSet};
+use crate::auth::{AuthService, XaiAuthConfig, PkceState};
+use crate::models::{Account, AppSettings, TokenSet, UsageSnapshot};
 use log::{error, info, warn};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use thiserror::Error;
@@ -26,10 +25,11 @@ pub struct AccountManager {
     settings: Arc<RwLock<AppSettings>>,
     auth_service: Arc<AuthService>,
     storage_path: String,
+    pkce_state: Arc<RwLock<Option<PkceState>>>,
 }
 
 impl AccountManager {
-    pub fn new(storage_path: String) -> Self {
+    pub fn new() -> Self {
         let config = XaiAuthConfig::default();
         let auth_service = Arc::new(AuthService::new(config));
         
@@ -37,7 +37,12 @@ impl AccountManager {
             accounts: Arc::new(RwLock::new(Vec::new())),
             settings: Arc::new(RwLock::new(AppSettings::default())),
             auth_service,
-            storage_path,
+            storage_path: dirs::home_dir()
+                .unwrap_or_default()
+                .join(".grok-monitor")
+                .to_string_lossy()
+                .to_string(),
+            pkce_state: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -180,6 +185,26 @@ impl AccountManager {
     /// Get auth service reference
     pub fn get_auth_service(&self) -> Arc<AuthService> {
         self.auth_service.clone()
+    }
+
+    /// Store PKCE state for OAuth flow
+    pub fn store_pkce_state(&self, pkce_state: PkceState) -> Result<()> {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            *self.pkce_state.write().await = Some(pkce_state);
+            Ok(())
+        })
+    }
+
+    /// Retrieve PKCE state for OAuth flow
+    pub fn retrieve_pkce_state(&self) -> Result<PkceState> {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let mut state = self.pkce_state.write().await;
+            state.take().ok_or_else(|| {
+                AccountManagerError::Storage("No PKCE state available".to_string())
+            })
+        })
     }
 
     /// Refresh tokens for all accounts that need it

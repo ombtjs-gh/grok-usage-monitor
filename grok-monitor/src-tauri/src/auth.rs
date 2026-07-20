@@ -1,7 +1,8 @@
 use crate::models::TokenSet;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use oauth2::{
-    basic::BasicClient, AuthType, AuthUrl, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge,
-    RedirectUrl, Scope, TokenResponse, TokenUrl,
+    basic::BasicClient, AuthType, AuthUrl, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl,
+    Scope, TokenResponse, TokenUrl,
 };
 use rand::rngs::OsRng;
 use reqwest::Client;
@@ -14,7 +15,7 @@ use url::Url;
 #[derive(Error, Debug)]
 pub enum AuthError {
     #[error("OAuth error: {0}")]
-    OAuth(#[from] oauth2::RequestTokenError),
+    OAuth(#[from] oauth2::RequestTokenError<oauth2::basic::BasicErrorResponseType, oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>>),
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
     #[error("URL parse error: {0}")]
@@ -60,13 +61,14 @@ pub struct PkceState {
 impl PkceState {
     pub fn generate() -> Result<Self> {
         let code_verifier = PkceCodeChallenge::new_random_sha256();
-        let (challenge, _verifier) = (code_verifier.clone(), code_verifier);
+        let challenge = code_verifier.0;
+        let verifier = code_verifier.1;
         
         // Generate CSRF token
         let csrf_token = CsrfToken::new_random().secret().to_string();
         
         Ok(Self {
-            code_verifier: code_verifier.secret().to_string(),
+            code_verifier: verifier.secret().to_string(),
             code_challenge: challenge.as_str().to_string(),
             csrf_token,
         })
@@ -110,10 +112,13 @@ impl AuthService {
 
     /// Exchange authorization code for tokens
     pub async fn exchange_code(&self, code: String, _pkce_state: PkceState) -> Result<TokenSet> {
-        let client = BasicClient::new(ClientId::new(self.config.client_id.clone()))
-            .set_auth_type(AuthType::RequestBody)
-            .set_auth_url(AuthUrl::new(self.config.auth_url.clone())?)
-            .set_token_url(TokenUrl::new(self.config.token_url.clone())?);
+        let client = BasicClient::new(
+            ClientId::new(self.config.client_id.clone()),
+            None,
+            AuthUrl::new(self.config.auth_url.clone())?,
+            Some(TokenUrl::new(self.config.token_url.clone())?),
+        )
+        .set_auth_type(AuthType::RequestBody);
 
         let token_result = client
             .exchange_code(code.into())
@@ -138,10 +143,13 @@ impl AuthService {
 
     /// Refresh an expired token
     pub async fn refresh_token(&self, refresh_token: String) -> Result<TokenSet> {
-        let client = BasicClient::new(ClientId::new(self.config.client_id.clone()))
-            .set_auth_type(AuthType::RequestBody)
-            .set_auth_url(AuthUrl::new(self.config.auth_url.clone())?)
-            .set_token_url(TokenUrl::new(self.config.token_url.clone())?);
+        let client = BasicClient::new(
+            ClientId::new(self.config.client_id.clone()),
+            None,
+            AuthUrl::new(self.config.auth_url.clone())?,
+            Some(TokenUrl::new(self.config.token_url.clone())?),
+        )
+        .set_auth_type(AuthType::RequestBody);
 
         let token_result = client
             .exchange_refresh_token(refresh_token.into())
@@ -200,5 +208,5 @@ pub fn sha256_hash(input: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
     let result = hasher.finalize();
-    base64::encode_config(result, base64::URL_SAFE_NO_PAD)
+    URL_SAFE_NO_PAD.encode(result)
 }
